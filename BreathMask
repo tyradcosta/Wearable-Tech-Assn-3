@@ -1,0 +1,214 @@
+
+#include "Adafruit_CCS811.h"
+Adafruit_CCS811 ccs;
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+#include <avr/power.h> // Required for 16 MHz Adafruit Trinket
+#endif
+// Which pin on the Arduino is connected to the NeoPixels?
+#define PIN        6// On Trinket or Gemma, suggest changing this to 1
+// How many NeoPixels are attached to the Arduino?
+#define NUMPIXELS 12 // Popular NeoPixel ring size
+
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
+//neopixel colors for inhaling
+int inhale1 = 120;
+int inhale2 = 60;
+int inhale3 = 0;
+//neopixel colors for  exhaling
+int exhale1 = 125;
+int exhale2 = 65;
+int exhale3 = 0;
+
+//empty variable to change neopixel colors
+int value1 = 0;
+int value2 = 0;
+int value3 = 0;
+
+int sensorValue = 0;        // the sensor value
+int sensorMin = 400;        // minimum sensor value
+int sensorMax = 1500;       // maximum sensor value
+int newbrightness = 0;
+
+
+int brightness = 0;    // how bright the LED is
+int fadeAmount = 5; // how many points to fade the led by
+
+
+void setup() {
+  Serial.begin(9600);
+
+  pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
+  pixels.setBrightness(0); // set pixel brightness
+
+  //check to see if sensor is working
+  Serial.println("CCS811 test");
+
+  if (!ccs.begin()) {
+    Serial.println("Failed to start sensor! Please check your wiring.");
+    while (1);
+  }
+
+  //calibrate temperature sensor
+  //  while (!ccs.available());
+  //  float temp = ccs.calculateTemperature();
+  //  ccs.setTempOffset(temp - 25.0);
+
+  //mapping the sensor values to range from 0-255
+  while (millis() < 5000) {
+    sensorValue = ccs.geteCO2();
+
+    // record the maximum sensor value
+    if (sensorValue > sensorMax) {
+      sensorMax = sensorValue;
+    }
+
+    // record the minimum sensor value
+    if (sensorValue < sensorMin) {
+      sensorMin = sensorValue;
+    }
+
+  }
+
+}
+
+
+
+void loop() {
+
+  visualizer();
+
+}
+
+//function that maps sensor values to nepixel patterns
+void visualizer() {
+
+  //check to see if sensor values are avaialable
+  if (ccs.available()) {
+    //    float temp = ccs.calculateTemperature();
+    if (!ccs.readData()) {
+
+      //all types of data the sensor collects
+      //Serial.print("CO2: ");
+      //Serial.print(ccs.geteCO2());
+      //Serial.print("ppm, TVOC: ");
+      //Serial.print(ccs.getTVOC());
+      //Serial.print("ppb Temp:");
+      //Serial.println(temp);
+
+      // read the sensor:
+      sensorValue =  ccs.geteCO2();
+
+      // apply the calibration to the sensor reading
+      sensorValue = map(sensorValue, sensorMin, sensorMax, 0, 255);
+
+      // in case the sensor value is outside the range seen during calibration
+      sensorValue = constrain(sensorValue, 0, 255);
+
+      //  pixels.clear(); // Set all pixel colors to 'off'
+      // for(int i=0; i<NUMPIXELS; i++) { // For each pixel...
+
+      // if nobody is breathing on the sensor then turn off all pixels
+      if (sensorValue < 70)
+      {
+        value1 = 0;
+        value2 = 0;
+        value3 = 0;
+        Serial.print("No Reading ");
+        Serial.print(sensorValue);
+        Serial.println("");
+
+      }
+      // if someone is inhaling set pixel colors to yellow
+      if (sensorValue > 71 && sensorValue < 200 ) {
+
+        value1 = inhale1;
+        value2 = inhale2;
+        value3 = inhale3;
+
+        pixels.setPixelColor(0, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(1, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(2, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(3, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(4, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(5, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(6, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(7, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(8, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(9, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(10, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(10, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(11, pixels.Color(value1, value2, value3));
+
+        // serial print sensor values
+        Serial.print("INHALING ");
+        Serial.print(sensorValue);
+        Serial.print("  GRAMS OF CO2");
+        Serial.println("");
+
+        fadeAmount = sensorValue;
+        brightness = brightness + fadeAmount;
+        if (brightness <= 0 || brightness >= 255) {
+          fadeAmount = -fadeAmount;
+
+          pixels.setBrightness(brightness); // set brightness to match the users breath
+          pixels.show();   // Send the updated pixel colors to the hardware.
+
+        }
+
+      }
+
+      // if someone is exhaling set pixel colors to blue
+
+      if (sensorValue >=  200)
+      { value1 = inhale1  + sensorValue;
+        value2 = inhale2  + sensorValue;
+        value3 = inhale3;
+
+        // pixels.Color() takes RGB values, from 0,0,0 up to 255,255,255
+        // Here we're using a moderately bright green color:
+        pixels.setPixelColor(0, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(1, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(2, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(3, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(4, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(5, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(6, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(7, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(8, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(9, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(10, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(10, pixels.Color(value1, value2, value3));
+        pixels.setPixelColor(11, pixels.Color(value1, value2, value3));
+
+        // serial print sensor values
+        Serial.print("EXHALING ");
+        Serial.print(sensorValue);
+        Serial.print("  GRAMS OF CO2");
+        Serial.println("");
+      }
+      //        //fades leds in and out
+      fadeAmount = sensorValue;
+      brightness = brightness + fadeAmount;
+      if (brightness <= 0 || brightness >= 255) {
+        fadeAmount = -fadeAmount;
+
+        pixels.setBrightness(brightness); // set brightness to match the users breath
+        pixels.show();   // Send the updated pixel colors to the hardware.
+      }
+
+
+    }
+
+
+    else {
+      Serial.println("ERROR!");
+      while (1);
+    }
+  }
+
+  delay(30);
+
+}
+// if no sensor reading is available serial print error message
